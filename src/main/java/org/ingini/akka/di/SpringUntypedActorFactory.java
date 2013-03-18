@@ -1,0 +1,139 @@
+/*
+ * Copyright (c) 2012 Ivan Hristov <hristov[DOT]iv[AT]gmail[DOT]com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.ingini.akka.di;
+
+import akka.actor.UntypedActor;
+import akka.actor.UntypedActorFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+
+import java.lang.reflect.Field;
+
+import static org.fest.reflect.util.Accessibles.setAccessible;
+import static org.fest.reflect.util.Accessibles.setAccessibleIgnoringExceptions;
+
+public class SpringUntypedActorFactory implements UntypedActorFactory {
+
+    private final DependencyInjectionFactory dependencyInjectionFactory;
+
+    private final ApplicationContext applicationContext;
+
+    public SpringUntypedActorFactory(Class<?> actorClass, ApplicationContext applicationContext) {
+        this.dependencyInjectionFactory = new DefaultUntypedActorFactory(actorClass);
+        this.applicationContext = applicationContext;
+    }
+
+    public SpringUntypedActorFactory(UntypedActorFactory customFactory, ApplicationContext applicationContext) {
+        this.dependencyInjectionFactory = new SpecificUntypedActorFactory(customFactory);
+        this.applicationContext = applicationContext;
+    }
+
+    private interface DependencyInjectionFactory {
+        UntypedActor createAndInject();
+    }
+
+
+    private abstract class AbstractUntypedActorFactory implements DependencyInjectionFactory {
+
+        @Override
+        public final UntypedActor createAndInject() {
+            try {
+                UntypedActor untypedActor = create();
+
+                Class<?> aClass = getActorClass();
+                for (Field field : aClass.getDeclaredFields()) {
+
+                    if (field.getAnnotation(Autowired.class) != null) {
+                        boolean accessible = field.isAccessible();
+                        try {
+                            setAccessible(field, true);
+                            if (field.getType() == ApplicationContext.class) {
+                                field.set(untypedActor, applicationContext);
+                            } else {
+                                field.set(untypedActor, applicationContext.getBean(field.getType()));
+                            }
+                        } catch (IllegalAccessException e) {
+                            throw new IllegalStateException("Unable to create actor instance", e);
+                        } finally {
+                            setAccessibleIgnoringExceptions(field, accessible);
+                        }
+                    }
+                }
+                return untypedActor;
+
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to create actor instance", e);
+            }
+
+        }
+
+        protected abstract Class<?> getActorClass();
+
+        protected abstract UntypedActor create() throws Exception;
+
+    }
+
+    private final class SpecificUntypedActorFactory extends AbstractUntypedActorFactory {
+
+        private final UntypedActorFactory specificFactory;
+        private volatile Class<?> actorClass;
+
+        private SpecificUntypedActorFactory(UntypedActorFactory specificFactory) {
+            this.specificFactory = specificFactory;
+        }
+
+        @Override
+        protected Class<?> getActorClass() {
+            return actorClass;
+        }
+
+        @Override
+        protected UntypedActor create() throws Exception {
+            UntypedActor untypedActor = (UntypedActor) specificFactory.create();
+            actorClass = untypedActor.getClass();
+            return untypedActor;
+        }
+    }
+
+    private final class DefaultUntypedActorFactory extends AbstractUntypedActorFactory {
+        private final Class<?> actorClass;
+
+        public DefaultUntypedActorFactory(Class<?> actorClass) {
+            this.actorClass = actorClass;
+        }
+
+        @Override
+        protected Class<?> getActorClass() {
+            return actorClass;
+        }
+
+        @Override
+        protected UntypedActor create() throws InstantiationException, IllegalAccessException {
+            return (UntypedActor) actorClass.newInstance();
+        }
+    }
+
+    /**
+     * This method must return a different instance upon every call.
+     */
+    @Override
+    public UntypedActor create() {
+        return dependencyInjectionFactory.createAndInject();
+    }
+
+
+}
