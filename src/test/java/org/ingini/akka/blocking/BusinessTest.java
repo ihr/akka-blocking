@@ -6,8 +6,9 @@ import akka.dispatch.Future;
 import akka.pattern.Patterns;
 import akka.util.Duration;
 import akka.util.Timeout;
+import org.ingini.akka.blocking.message.AcknowledgementMessage;
 import org.ingini.akka.blocking.message.BusinessMessage;
-import org.ingini.akka.blocking.message.BusinessMessagesHolder;
+import org.ingini.akka.blocking.message.BusinessMessages;
 import org.ingini.akka.blocking.service.BusinessService;
 import org.junit.Before;
 import org.junit.Rule;
@@ -23,6 +24,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+
+import static org.fest.assertions.Assertions.assertThat;
 
 /**
  * Copyright (c) 2013 Ivan Hristov
@@ -58,21 +61,23 @@ public class BusinessTest {
     }
 
     @Test
-    public void allActorShouldAcknowledgeWithinTime() throws Exception {
+    public void allActorsShouldAcknowledgeWithinTime() throws Exception {
         //GIVEN
-        List<BusinessMessage> messages = new ArrayList<BusinessMessage>(100);
-        for (int i = 0; i < 100; i++) {
+        int numberOfMessages = 100;
+        List<BusinessMessage> messages = new ArrayList<BusinessMessage>(numberOfMessages);
+        for (int i = 0; i < numberOfMessages; i++) {
             messages.add(new BusinessMessage("Msg number: " + i));
         }
 
         Duration duration = Duration.apply("10 sec");
 
         //WHEN
-        Future<Object> answer = Patterns.ask(fireAndAwaitRouter, new BusinessMessagesHolder(messages), //
+        Future<Object> answer = Patterns.ask(fireAndAwaitRouter, new BusinessMessages(messages), //
                 Timeout.durationToTimeout(duration));
 
         //THEN
-        Await.result(answer, duration);
+        assertThat(Await.result(answer, duration))//
+                .isEqualTo(AcknowledgementMessage.getInstance());
 
     }
 
@@ -82,16 +87,17 @@ public class BusinessTest {
         expectedExceptionRule.expect(TimeoutException.class);
         expectedExceptionRule.expectMessage("Futures timed out after [1] milliseconds");
 
-        List<BusinessMessage> messages = new ArrayList<BusinessMessage>(100000);
-        for (int i = 0; i < 100; i++) {
+        int numberOfMessages = 100000;
+        List<BusinessMessage> messages = new ArrayList<BusinessMessage>(numberOfMessages);
+        for (int i = 0; i < numberOfMessages; i++) {
             messages.add(new BusinessMessage("Msg number: " + i));
         }
 
         Duration duration = Duration.apply("1 millisecond");
 
         //WHEN
-        Future<Object> answer = Patterns.ask(fireAndAwaitRouter, new BusinessMessagesHolder(messages), //
-                Timeout.durationToTimeout(duration));
+        Future<Object> answer = Patterns.ask(fireAndAwaitRouter, //
+                new BusinessMessages(messages), Timeout.durationToTimeout(duration));
 
         //THEN
         Await.result(answer, duration);

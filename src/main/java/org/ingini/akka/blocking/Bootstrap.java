@@ -2,7 +2,7 @@ package org.ingini.akka.blocking;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import org.ingini.akka.blocking.actor.FireAndAwaitRouterActor;
+import org.ingini.akka.blocking.actor.FireAndAwaitMediatorActor;
 import org.ingini.akka.di.DependencyInjectionProps;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -48,7 +48,7 @@ public class Bootstrap {
     @DependsOn({ACTOR_SYSTEM})
     public ActorRef fireAndAwaitRouter() {
         return actorSystem.actorOf(//
-                new DependencyInjectionProps(applicationContext, FireAndAwaitRouterActor.class), FIRE_AND_AWAIT_ROUTER);
+                new DependencyInjectionProps(applicationContext, FireAndAwaitMediatorActor.class), FIRE_AND_AWAIT_ROUTER);
     }
 
 }

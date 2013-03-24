@@ -1,7 +1,7 @@
 package org.ingini.akka.blocking.message;
 
 import javax.annotation.concurrent.Immutable;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,11 +20,11 @@ import java.util.List;
  * limitations under the License.
  */
 @Immutable
-public class BusinessMessagesHolder {
+public class BusinessMessages {
     private final List<BusinessMessage> businessMessages;
 
-    public BusinessMessagesHolder(List<BusinessMessage> businessMessages) {
-        this.businessMessages = new ArrayList<BusinessMessage>(businessMessages);
+    public BusinessMessages(List<BusinessMessage> businessMessages) {
+        this.businessMessages = Collections.unmodifiableList(businessMessages);
     }
 
     public List<BusinessMessage> getBusinessMessages() {

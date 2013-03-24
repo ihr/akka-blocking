@@ -29,6 +29,6 @@ public class BusinessConfirmationActor extends UntypedActor {
     @Override
     public void onReceive(Object message) throws Exception {
         businessService.doBusiness((BusinessMessage) message);
-        getSender().tell(AcknowledgementMessage.getInstance()   );
+        getSender().tell(AcknowledgementMessage.getInstance());
     }
 }
